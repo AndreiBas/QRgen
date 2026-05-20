@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced QR Code Generator</title>
+    <script src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 30px;
+        }
+        .panel {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        h2 { margin-top: 0; }
+        label {
+            display: block;
+            margin-top: 16px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        input[type="text"], input[type="email"], select, input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        .color-row {
+            display: flex;
+            gap: 15px;
+        }
+        .color-picker {
+            display: flex;
+            flex-direction: column;
+            width: 50%;
+        }
+        input[type="color"] {
+            width: 100%;
+            height: 40px;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin-top: 8px;
+        }
+        .input-group { display: none; }
+        .input-group.active { display: block; }
+        
+        #logo-scale-container {
+            display: none; 
+            margin-top: 16px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+
+        #preview-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #qrcode-container {
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            min-height: 256px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #1d4ed8; }
+
+        /* Styling for the secondary Remove Logo button */
+        #remove-logo-btn {
+            display: none; /* Hidden until logo is uploaded */
+            background-color: transparent;
+            color: #dc2626;
+            border: 1px solid #dc2626;
+            margin-top: 12px;
+        }
+        #remove-logo-btn:hover {
+            background-color: #fef2f2;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Left Column: Controls -->
+    <div class="panel">
+        <h2>QR Code Details</h2>
+        
+        <label for="format-select">Data Type</label>
+        <select id="format-select">
+            <option value="url">URL / Website</option>
+            <option value="wifi">Wi-Fi Network</option>
+            <option value="email">Email Address</option>
+        </select>
+
+        <div id="group-url" class="input-group active">
+            <label for="input-url">Website URL</label>
+            <input type="text" id="input-url" value="https://example.com" placeholder="https://...">
+        </div>
+
+        <div id="group-wifi" class="input-group">
+            <label for="input-ssid">Network Name (SSID)</label>
+            <input type="text" id="input-ssid" placeholder="MyHomeNetwork">
+            <label for="input-password">Network Password</label>
+            <input type="text" id="input-password" placeholder="SuperSecret123">
+        </div>
+
+        <div id="group-email" class="input-group">
+            <label for="input-email">Email Address</label>
+            <input type="email" id="input-email" placeholder="hello@example.com">
+            <label for="input-subject">Subject Line</label>
+            <input type="text" id="input-subject" placeholder="Inquiry from QR Code">
+        </div>
+
+        <hr style="margin: 24px 0; border: 0; border-top: 1px solid #eee;">
+
+        <h2>Brand Customization</h2>
+        <div class="color-row">
+            <div class="color-picker">
+                <label for="color-dark">Foreground</label>
+                <input type="color" id="color-dark" value="#000000">
+            </div>
+            <div class="color-picker">
+                <label for="color-light">Background</label>
+                <input type="color" id="color-light" value="#ffffff">
+            </div>
+        </div>
+
+        <label for="logo-upload">Upload Center Logo</label>
+        <input type="file" id="logo-upload" accept="image/*">
+        
+        <!-- New Remove Logo Button -->
+        <button id="remove-logo-btn">Remove Logo</button>
+
+        <div id="logo-scale-container">
+            <label for="logo-scale">Logo Size: <span id="logo-scale-value">80</span>px</label>
+            <input type="range" id="logo-scale" min="30" max="100" value="80" step="1">
+        </div>
+    </div>
+
+    <!-- Right Column: Preview & Download -->
+    <div id="preview-panel">
+        <div id="qrcode-container"></div>
+        <button id="download-btn">Download PNG</button>
+    </div>
+
+    <script>
+        const qrContainer = document.getElementById('qrcode-container');
+        let currentQR = null;
+        let logoDataUrl = null; 
+
+        const formatSelect = document.getElementById('format-select');
+        const inputGroups = document.querySelectorAll('.input-group');
+        const logoScaleContainer = document.getElementById('logo-scale-container');
+        const logoScaleInput = document.getElementById('logo-scale');
+        const logoScaleValue = document.getElementById('logo-scale-value');
+        const logoUploadInput = document.getElementById('logo-upload');
+        const removeLogoBtn = document.getElementById('remove-logo-btn');
+
+        // Toggle Formats
+        formatSelect.addEventListener('change', (e) => {
+            inputGroups.forEach(group => group.classList.remove('active'));
+            document.getElementById(`group-${e.target.value}`).classList.add('active');
+            generateQR();
+        });
+
+        // Construct Data String
+        function getQRText() {
+            const format = formatSelect.value;
+            if (format === 'url') return document.getElementById('input-url').value || ' ';
+            if (format === 'wifi') {
+                const ssid = document.getElementById('input-ssid').value;
+                const pw = document.getElementById('input-password').value;
+                return `WIFI:T:WPA;S:${ssid};P:${pw};;`;
+            } 
+            if (format === 'email') {
+                const email = document.getElementById('input-email').value;
+                const sub = document.getElementById('input-subject').value;
+                return `MATMSG:TO:${email};SUB:${sub};BODY:;;`;
+            }
+        }
+
+        // Generate QR Code with qr-code-styling
+        function generateQR() {
+            qrContainer.innerHTML = ''; 
+            
+            const textToEncode = getQRText();
+            const colorDark = document.getElementById('color-dark').value;
+            const colorLight = document.getElementById('color-light').value;
+            const logoSizePx = parseInt(logoScaleInput.value, 10);
+            
+            const imageScale = logoSizePx / 256; 
+
+            currentQR = new QRCodeStyling({
+                width: 256,
+                height: 256,
+                data: textToEncode,
+                image: logoDataUrl || "", 
+                qrOptions: {
+                    errorCorrectionLevel: 'H' 
+                },
+                dotsOptions: {
+                    color: colorDark,
+                    type: "square" 
+                },
+                backgroundOptions: {
+                    color: colorLight,
+                },
+                imageOptions: {
+                    crossOrigin: "anonymous",
+                    margin: 5, 
+                    imageSize: imageScale, 
+                    hideBackgroundDots: true 
+                }
+            });
+
+            currentQR.append(qrContainer);
+        }
+
+        // Handle Logo Upload
+        logoUploadInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) {
+                clearLogo();
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                logoDataUrl = event.target.result;
+                logoScaleContainer.style.display = 'block'; 
+                removeLogoBtn.style.display = 'block'; // Show remove button
+                generateQR();
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Clear Logo Logic
+        function clearLogo() {
+            logoDataUrl = null;
+            logoUploadInput.value = ''; // Reset the file input
+            logoScaleContainer.style.display = 'none'; 
+            removeLogoBtn.style.display = 'none'; // Hide remove button
+            generateQR();
+        }
+
+        // Handle Remove Logo Click
+        removeLogoBtn.addEventListener('click', clearLogo);
+
+        // Update Slider Value Text & Regenerate
+        logoScaleInput.addEventListener('input', (e) => {
+            logoScaleValue.textContent = e.target.value;
+            generateQR();
+        });
+
+        // Image Download 
+        document.getElementById('download-btn').addEventListener('click', () => {
+            if (currentQR) {
+                currentQR.download({ name: "custom-qrcode", extension: "png" });
+            }
+        });
+
+        // Standard Listeners
+        document.querySelectorAll('input[type="text"], input[type="email"], input[type="color"]').forEach(input => {
+            input.addEventListener('input', generateQR);
+        });
+
+        generateQR();
+    </script>
+</body>
+</html>
