@@ -17,6 +17,20 @@
             grid-template-columns: 1fr 350px;
             gap: 30px;
         }
+        
+        /* --- NEW: Mobile Responsive Design --- */
+        @media (max-width: 768px) {
+            body {
+                grid-template-columns: 1fr; /* Stacks the columns vertically */
+                margin: 20px auto;          /* Reduces top margin on mobile */
+                gap: 20px;
+            }
+            .panel {
+                padding: 16px;              /* Slightly tighter padding for small screens */
+            }
+        }
+        /* ------------------------------------- */
+
         .panel {
             background: white;
             padding: 24px;
@@ -86,7 +100,16 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            width: 100%;
+            box-sizing: border-box;
         }
+        
+        /* Ensure the canvas doesn't overflow its container on tiny screens */
+        #qrcode-container canvas {
+            max-width: 100%;
+            height: auto !important;
+        }
+
         button {
             width: 100%;
             padding: 12px;
@@ -102,9 +125,8 @@
         }
         button:hover { background-color: #1d4ed8; }
 
-        /* Styling for the secondary Remove Logo button */
         #remove-logo-btn {
-            display: none; /* Hidden until logo is uploaded */
+            display: none; 
             background-color: transparent;
             color: #dc2626;
             border: 1px solid #dc2626;
@@ -164,7 +186,6 @@
         <label for="logo-upload">Upload Center Logo</label>
         <input type="file" id="logo-upload" accept="image/*">
         
-        <!-- New Remove Logo Button -->
         <button id="remove-logo-btn">Remove Logo</button>
 
         <div id="logo-scale-container">
@@ -264,7 +285,7 @@
             reader.onload = function(event) {
                 logoDataUrl = event.target.result;
                 logoScaleContainer.style.display = 'block'; 
-                removeLogoBtn.style.display = 'block'; // Show remove button
+                removeLogoBtn.style.display = 'block'; 
                 generateQR();
             };
             reader.readAsDataURL(file);
@@ -273,9 +294,9 @@
         // Clear Logo Logic
         function clearLogo() {
             logoDataUrl = null;
-            logoUploadInput.value = ''; // Reset the file input
+            logoUploadInput.value = ''; 
             logoScaleContainer.style.display = 'none'; 
-            removeLogoBtn.style.display = 'none'; // Hide remove button
+            removeLogoBtn.style.display = 'none'; 
             generateQR();
         }
 
