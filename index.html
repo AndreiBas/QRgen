@@ -18,18 +18,14 @@
             gap: 30px;
         }
         
-        /* --- NEW: Mobile Responsive Design --- */
         @media (max-width: 768px) {
             body {
-                grid-template-columns: 1fr; /* Stacks the columns vertically */
-                margin: 20px auto;          /* Reduces top margin on mobile */
+                grid-template-columns: 1fr; 
+                margin: 20px auto;          
                 gap: 20px;
             }
-            .panel {
-                padding: 16px;              /* Slightly tighter padding for small screens */
-            }
+            .panel { padding: 16px; }
         }
-        /* ------------------------------------- */
 
         .panel {
             background: white;
@@ -76,6 +72,24 @@
         .input-group { display: none; }
         .input-group.active { display: block; }
         
+        .radio-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 16px;
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        .radio-group label {
+            margin: 0;
+            font-weight: 400;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
         #logo-scale-container {
             display: none; 
             margin-top: 16px;
@@ -104,7 +118,6 @@
             box-sizing: border-box;
         }
         
-        /* Ensure the canvas doesn't overflow its container on tiny screens */
         #qrcode-container canvas {
             max-width: 100%;
             height: auto !important;
@@ -124,22 +137,10 @@
             transition: background 0.2s;
         }
         button:hover { background-color: #1d4ed8; }
-
-        #remove-logo-btn {
-            display: none; 
-            background-color: transparent;
-            color: #dc2626;
-            border: 1px solid #dc2626;
-            margin-top: 12px;
-        }
-        #remove-logo-btn:hover {
-            background-color: #fef2f2;
-        }
     </style>
 </head>
 <body>
 
-    <!-- Left Column: Controls -->
     <div class="panel">
         <h2>QR Code Details</h2>
         
@@ -171,7 +172,7 @@
 
         <hr style="margin: 24px 0; border: 0; border-top: 1px solid #eee;">
 
-        <h2>Brand Customization</h2>
+        <h2>Brand & Graphics</h2>
         <div class="color-row">
             <div class="color-picker">
                 <label for="color-dark">Foreground</label>
@@ -183,18 +184,34 @@
             </div>
         </div>
 
-        <label for="logo-upload">Upload Center Logo</label>
-        <input type="file" id="logo-upload" accept="image/*">
-        
-        <button id="remove-logo-btn">Remove Logo</button>
+        <label>Center Graphic Type</label>
+        <div class="radio-group">
+            <label><input type="radio" name="graphic-type" value="none" checked> None</label>
+            <label><input type="radio" name="graphic-type" value="logo"> Image</label>
+            <label><input type="radio" name="graphic-type" value="symbol"> Hidden Symbol</label>
+        </div>
 
+        <div id="logo-upload-container" style="display: none;">
+            <input type="file" id="logo-upload" accept="image/*">
+        </div>
+
+        <div id="symbol-input-container" style="display: none;">
+            <input type="text" id="input-symbol" maxlength="2" placeholder="e.g. 7 or A1" style="text-transform: uppercase; font-family: monospace; font-size: 16px; letter-spacing: 2px;">
+            
+            <label for="symbol-cutout-size" style="margin-top: 12px; font-size: 14px;">Symbol Grid Size: <span id="cutout-value">13x13 Modules</span></label>
+            <input type="range" id="symbol-cutout-size" min="7" max="15" value="13" step="2">
+
+            <label for="symbol-nudge" style="margin-top: 12px; font-size: 14px;">Vertical Alignment Adjust</label>
+            <input type="range" id="symbol-nudge" min="-3" max="3" value="0" step="1">
+        </div>
+
+        <!-- This container now strictly toggles only for standard images -->
         <div id="logo-scale-container">
-            <label for="logo-scale">Logo Size: <span id="logo-scale-value">80</span>px</label>
-            <input type="range" id="logo-scale" min="30" max="100" value="80" step="1">
+            <label for="logo-scale">Logo Image Size: <span id="logo-scale-value">85px</span></label>
+            <input type="range" id="logo-scale" min="40" max="120" value="85" step="1">
         </div>
     </div>
 
-    <!-- Right Column: Preview & Download -->
     <div id="preview-panel">
         <div id="qrcode-container"></div>
         <button id="download-btn">Download PNG</button>
@@ -211,16 +228,29 @@
         const logoScaleInput = document.getElementById('logo-scale');
         const logoScaleValue = document.getElementById('logo-scale-value');
         const logoUploadInput = document.getElementById('logo-upload');
-        const removeLogoBtn = document.getElementById('remove-logo-btn');
+        const inputSymbol = document.getElementById('input-symbol');
+        const symbolCutoutSize = document.getElementById('symbol-cutout-size');
+        const symbolNudge = document.getElementById('symbol-nudge');
+        const cutoutValue = document.getElementById('cutout-value');
+        const graphicTypeRadios = document.querySelectorAll('input[name="graphic-type"]');
 
-        // Toggle Formats
-        formatSelect.addEventListener('change', (e) => {
+        formatSelect.addEventListener('change', () => {
             inputGroups.forEach(group => group.classList.remove('active'));
-            document.getElementById(`group-${e.target.value}`).classList.add('active');
+            document.getElementById(`group-${formatSelect.value}`).classList.add('active');
             generateQR();
         });
 
-        // Construct Data String
+        // Fixed UI Toggles: Hides Logo Scale slider entirely in Symbol mode
+        graphicTypeRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const val = e.target.value;
+                document.getElementById('logo-upload-container').style.display = val === 'logo' ? 'block' : 'none';
+                document.getElementById('symbol-input-container').style.display = val === 'symbol' ? 'block' : 'none';
+                logoScaleContainer.style.display = val === 'logo' ? 'block' : 'none';
+                generateQR();
+            });
+        });
+
         function getQRText() {
             const format = formatSelect.value;
             if (format === 'url') return document.getElementById('input-url').value || ' ';
@@ -236,87 +266,137 @@
             }
         }
 
-        // Generate QR Code with qr-code-styling
+        function generatePixelArtURI(text, cutoutSize, colorDark, colorLight, nudgeValue) {
+            if (!text) return "";
+            
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            const baseResolution = 256;
+            canvas.width = baseResolution;
+            canvas.height = baseResolution;
+            
+            const miniCanvas = document.createElement('canvas');
+            const mCtx = miniCanvas.getContext('2d', { willReadFrequently: true });
+            miniCanvas.width = cutoutSize;
+            miniCanvas.height = cutoutSize;
+            
+            mCtx.fillStyle = '#ffffff';
+            mCtx.fillRect(0, 0, cutoutSize, cutoutSize);
+            
+            mCtx.fillStyle = '#000000';
+            const fontSize = Math.floor(cutoutSize * 0.85);
+            mCtx.font = `bold ${fontSize}px monospace`;
+            mCtx.textAlign = 'center';
+            mCtx.textBaseline = 'middle';
+            
+            mCtx.fillText(text.toUpperCase(), cutoutSize / 2, (cutoutSize / 2) + 0.5 + nudgeValue);
+            
+            const rawPixels = mCtx.getImageData(0, 0, cutoutSize, cutoutSize).data;
+            
+            const blockSize = baseResolution / cutoutSize;
+            for (let y = 0; y < cutoutSize; y++) {
+                for (let x = 0; x < cutoutSize; x++) {
+                    const idx = (y * cutoutSize + x) * 4;
+                    const isDark = rawPixels[idx] < 128;
+                    
+                    ctx.fillStyle = isDark ? colorDark : colorLight;
+                    ctx.fillRect(
+                        Math.floor(x * blockSize), 
+                        Math.floor(y * blockSize), 
+                        Math.ceil(blockSize), 
+                        Math.ceil(blockSize)
+                    );
+                }
+            }
+            return canvas.toDataURL('image/png');
+        }
+
         function generateQR() {
             qrContainer.innerHTML = ''; 
             
             const textToEncode = getQRText();
             const colorDark = document.getElementById('color-dark').value;
             const colorLight = document.getElementById('color-light').value;
-            const logoSizePx = parseInt(logoScaleInput.value, 10);
-            
-            const imageScale = logoSizePx / 256; 
+            const graphicType = document.querySelector('input[name="graphic-type"]:checked').value;
 
-            currentQR = new QRCodeStyling({
+            let modulesCount = 25; 
+            const charCount = textToEncode.length;
+            if (charCount > 114) modulesCount = 37;
+            else if (charCount > 84) modulesCount = 33;
+            else if (charCount > 53) modulesCount = 29;
+            else if (charCount > 32) modulesCount = 25;
+            else modulesCount = 21;
+
+            const config = {
                 width: 256,
                 height: 256,
                 data: textToEncode,
-                image: logoDataUrl || "", 
-                qrOptions: {
-                    errorCorrectionLevel: 'H' 
-                },
-                dotsOptions: {
-                    color: colorDark,
-                    type: "square" 
-                },
-                backgroundOptions: {
-                    color: colorLight,
-                },
-                imageOptions: {
-                    crossOrigin: "anonymous",
-                    margin: 5, 
-                    imageSize: imageScale, 
-                    hideBackgroundDots: true 
-                }
-            });
+                qrOptions: { errorCorrectionLevel: 'H' },
+                dotsOptions: { color: colorDark, type: "square" },
+                backgroundOptions: { color: colorLight }
+            };
 
+            if (graphicType === 'logo' && logoDataUrl) {
+                const logoSizePx = parseInt(logoScaleInput.value, 10);
+                config.image = logoDataUrl;
+                config.imageOptions = {
+                    crossOrigin: "anonymous",
+                    margin: 5,
+                    imageSize: logoSizePx / 256,
+                    hideBackgroundDots: true
+                };
+            } else if (graphicType === 'symbol' && inputSymbol.value) {
+                const cutoutSize = parseInt(symbolCutoutSize.value, 10);
+                const nudgeValue = parseInt(symbolNudge.value, 10);
+                const perfectionScale = cutoutSize / modulesCount;
+                
+                config.image = generatePixelArtURI(inputSymbol.value, cutoutSize, colorDark, colorLight, nudgeValue);
+                config.imageOptions = {
+                    crossOrigin: "anonymous",
+                    margin: 0, 
+                    imageSize: perfectionScale,
+                    hideBackgroundDots: true
+                };
+            }
+
+            currentQR = new QRCodeStyling(config);
             currentQR.append(qrContainer);
         }
 
-        // Handle Logo Upload
         logoUploadInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) {
-                clearLogo();
+                logoDataUrl = null;
+                generateQR();
                 return;
             }
-            
             const reader = new FileReader();
             reader.onload = function(event) {
                 logoDataUrl = event.target.result;
-                logoScaleContainer.style.display = 'block'; 
-                removeLogoBtn.style.display = 'block'; 
                 generateQR();
             };
             reader.readAsDataURL(file);
         });
 
-        // Clear Logo Logic
-        function clearLogo() {
-            logoDataUrl = null;
-            logoUploadInput.value = ''; 
-            logoScaleContainer.style.display = 'none'; 
-            removeLogoBtn.style.display = 'none'; 
-            generateQR();
-        }
-
-        // Handle Remove Logo Click
-        removeLogoBtn.addEventListener('click', clearLogo);
-
-        // Update Slider Value Text & Regenerate
         logoScaleInput.addEventListener('input', (e) => {
-            logoScaleValue.textContent = e.target.value;
+            logoScaleValue.textContent = e.target.value + "px";
             generateQR();
         });
 
-        // Image Download 
+        symbolCutoutSize.addEventListener('input', (e) => {
+            cutoutValue.textContent = e.target.value + "x" + e.target.value + " Modules";
+            generateQR();
+        });
+
+        symbolNudge.addEventListener('input', generateQR);
+
         document.getElementById('download-btn').addEventListener('click', () => {
             if (currentQR) {
                 currentQR.download({ name: "custom-qrcode", extension: "png" });
             }
         });
 
-        // Standard Listeners
         document.querySelectorAll('input[type="text"], input[type="email"], input[type="color"]').forEach(input => {
             input.addEventListener('input', generateQR);
         });
