@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced QR Code Generator</title>
+    <title>Advanced Vector QR Code Generator</title>
     <script src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
     <style>
         body {
@@ -118,25 +118,35 @@
             box-sizing: border-box;
         }
         
-        #qrcode-container canvas {
+        /* Updated to ensure responsive scaling for vectors as well as canvas elements */
+        #qrcode-container canvas, #qrcode-container svg {
             max-width: 100%;
             height: auto !important;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            margin-top: 20px;
         }
 
         button {
             width: 100%;
             padding: 12px;
-            background-color: #2563eb;
             color: white;
             border: none;
             border-radius: 4px;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: bold;
             cursor: pointer;
-            margin-top: 20px;
             transition: background 0.2s;
         }
-        button:hover { background-color: #1d4ed8; }
+        #download-png { background-color: #4b5563; }
+        #download-png:hover { background-color: #374151; }
+        
+        #download-svg { background-color: #2563eb; }
+        #download-svg:hover { background-color: #1d4ed8; }
     </style>
 </head>
 <body>
@@ -205,7 +215,6 @@
             <input type="range" id="symbol-nudge" min="-3" max="3" value="0" step="1">
         </div>
 
-        <!-- This container now strictly toggles only for standard images -->
         <div id="logo-scale-container">
             <label for="logo-scale">Logo Image Size: <span id="logo-scale-value">85px</span></label>
             <input type="range" id="logo-scale" min="40" max="120" value="85" step="1">
@@ -214,7 +223,10 @@
 
     <div id="preview-panel">
         <div id="qrcode-container"></div>
-        <button id="download-btn">Download PNG</button>
+        <div class="button-row">
+            <button id="download-png">Save PNG</button>
+            <button id="download-svg">Save SVG (Vector)</button>
+        </div>
     </div>
 
     <script>
@@ -240,7 +252,6 @@
             generateQR();
         });
 
-        // Fixed UI Toggles: Hides Logo Scale slider entirely in Symbol mode
         graphicTypeRadios.forEach(radio => {
             radio.addEventListener('change', (e) => {
                 const val = e.target.value;
@@ -272,7 +283,9 @@
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             
-            const baseResolution = 256;
+            // Increased resolution to 1024 so when embedded inside the vector SVG structure,
+            // the custom text symbol stays completely clean and doesn't blur upon extreme magnification.
+            const baseResolution = 1024;
             canvas.width = baseResolution;
             canvas.height = baseResolution;
             
@@ -320,20 +333,37 @@
             const colorLight = document.getElementById('color-light').value;
             const graphicType = document.querySelector('input[name="graphic-type"]:checked').value;
 
-            let modulesCount = 25; 
-            const charCount = textToEncode.length;
-            if (charCount > 114) modulesCount = 37;
-            else if (charCount > 84) modulesCount = 33;
-            else if (charCount > 53) modulesCount = 29;
-            else if (charCount > 32) modulesCount = 25;
-            else modulesCount = 21;
+            const byteLength = new TextEncoder().encode(textToEncode).length;
+            const capacitiesH = [
+                7, 14, 24, 34, 44, 58, 64, 84, 106, 119, 137, 155, 177, 194, 220, 259, 283, 321, 356, 393,
+                442, 487, 537, 593, 645, 713, 773, 835, 901, 971, 1045, 1123, 1205, 1291, 1341, 1435, 1533, 1635, 1741, 1853
+            ];
+
+            let version = 1;
+            for (let i = 0; i < capacitiesH.length; i++) {
+                if (byteLength <= capacitiesH[i]) {
+                    version = i + 1;
+                    break;
+                }
+                if (i === capacitiesH.length - 1) version = 40;
+            }
+
+            const modulesCount = 17 + (4 * version);
 
             const config = {
                 width: 256,
                 height: 256,
+                type: "svg", // <-- CRITICAL: Forces library to build native SVG markup rather than an HTML5 Canvas
                 data: textToEncode,
-                qrOptions: { errorCorrectionLevel: 'H' },
-                dotsOptions: { color: colorDark, type: "square" },
+                qrOptions: { 
+                    typeNumber: version, 
+                    errorCorrectionLevel: 'H' 
+                },
+                dotsOptions: { 
+                    color: colorDark, 
+                    type: "square",
+                    roundSize: false // <-- CRITICAL: Disables pixel-rounding approximations so SVG shapes scale cleanly
+                },
                 backgroundOptions: { color: colorLight }
             };
 
@@ -391,9 +421,16 @@
 
         symbolNudge.addEventListener('input', generateQR);
 
-        document.getElementById('download-btn').addEventListener('click', () => {
+        // Updated button hooks to target the correct data export pipelines
+        document.getElementById('download-png').addEventListener('click', () => {
             if (currentQR) {
-                currentQR.download({ name: "custom-qrcode", extension: "png" });
+                currentQR.download({ name: "vector-qrcode", extension: "png" });
+            }
+        });
+
+        document.getElementById('download-svg').addEventListener('click', () => {
+            if (currentQR) {
+                currentQR.download({ name: "vector-qrcode", extension: "svg" });
             }
         });
 
